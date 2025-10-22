@@ -118,12 +118,22 @@ class DevNet():
         confidence_margin = 5.
         ## size=5000 is the setting of l in algorithm 1 in the paper
         if self.ref is None:
-            self.ref = K.variable(np.random.normal(loc = 0., scale= 1.0, size = 5000), dtype='float32')
-        dev = (y_pred - K.mean(self.ref)) / K.std(self.ref)
-        inlier_loss = K.abs(dev)
-        outlier_loss = K.abs(K.maximum(confidence_margin - dev, 0.))
 
-        return K.mean((1 - y_true) * inlier_loss + y_true * outlier_loss)
+            #L'utilisation de K.variable, K.means etc dans keras.api.backend n'est pas disponible dans TensorFlow 2.x et Keras 2.x.
+
+        #     self.ref = K.variable(np.random.normal(loc = 0., scale= 1.0, size = 5000), dtype='float32')
+        # dev = (y_pred - K.mean(self.ref)) / K.std(self.ref)
+        # inlier_loss = K.abs(dev)
+        # outlier_loss = K.abs(K.maximum(confidence_margin - dev, 0.))
+        # return K.mean((1 - y_true) * inlier_loss + y_true * outlier_loss)
+
+
+            self.ref = tf.Variable(np.random.normal(loc = 0., scale= 1.0, size = 5000), dtype=tf.float32)
+        dev = (y_pred - tf.reduce_mean(self.ref)) / tf.math.reduce_std(self.ref)
+        inlier_loss = tf.abs(dev)
+        outlier_loss = tf.abs(tf.maximum(confidence_margin - dev, 0.))
+
+        return tf.reduce_mean((1 - y_true) * inlier_loss + y_true * outlier_loss)
 
     def deviation_network(self, input_shape, network_depth):
         '''
@@ -225,11 +235,12 @@ class DevNet():
         batch_size = self.args.batch_size
         nb_batch = self.args.nb_batch
         self.model = self.deviation_network(self.input_shape, self.network_depth)
-        self.model_name = os.path.join(self.modelpath,'devnet_'+self.save_suffix+'.h5')
+        self.model_name = os.path.join(self.modelpath,'devnet_'+self.save_suffix+'.weights.h5') #Modification de .h5 par .weights.h5 pour le callback ModelCheckpoint de Keras 
         checkpointer = ModelCheckpoint(self.model_name, monitor='loss', verbose=0,
                                        save_best_only = True, save_weights_only = True)
 
-        self.model.fit_generator(self.batch_generator_sup(X_train, outlier_indices, inlier_indices, batch_size, nb_batch, rng),
+        #la méthode fit_generator n'existe plus pour le modèle Keras de type Functional. À partir de TensorFlow 2.1+, fit_generator est dépréciée et a été remplacée par fit
+        self.model.fit(self.batch_generator_sup(X_train, outlier_indices, inlier_indices, batch_size, nb_batch, rng),
                                   steps_per_epoch = nb_batch,
                                   epochs = epochs,
                                   callbacks=[checkpointer])

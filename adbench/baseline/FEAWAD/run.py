@@ -80,7 +80,8 @@ class FEAWAD():
 
     def auto_encoder(self, input_shape):
         x_input = Input(shape=input_shape)
-        length = K.int_shape(x_input)[1]
+        # length = K.int_shape(x_input)[1] #int_shape est dépréciée dépuis tensorflow 2.x
+        length = x_input.shape[1]
 
         input_vector = Dense(length, kernel_initializer='glorot_normal',use_bias=True,activation='relu',name = 'ain')(x_input)
         en1 = Dense(128, kernel_initializer='glorot_normal',use_bias=True,activation='relu',name = 'ae1')(input_vector)
@@ -89,7 +90,7 @@ class FEAWAD():
         de2 = Dense(length, kernel_initializer='glorot_normal',use_bias=True,activation='relu',name = 'ad2')(de1)
 
         model =  Model(x_input, de2)
-        adm = Adam(lr=0.0001)
+        adm = Adam(learning_rate=0.0001)
         model.compile(loss=mean_squared_error, optimizer=adm)
 
         return model
@@ -99,7 +100,8 @@ class FEAWAD():
         deeper network architecture with three hidden layers
         '''
         x_input = Input(shape=input_shape)
-        length = K.int_shape(x_input)[1]
+        # length = K.int_shape(x_input)[1] #int_shape est dépréciée dépuis tensorflow 2.x
+        length = x_input.shape[1]
 
         input_vector = Dense(length, kernel_initializer='glorot_normal',use_bias=True,activation='relu',name = 'ain')(x_input)
         en1 = Dense(128, kernel_initializer='glorot_normal',use_bias=True,activation='relu',name = 'ae1')(input_vector)
@@ -350,9 +352,10 @@ class FEAWAD():
         self.utils.set_seed(self.seed)
         AEmodel = self.deviation_network(self.input_shape, 2, None, 0)  # pretrain auto-encoder model
         print('autoencoder pre-training start....')
-        AEmodel_name = os.path.join(self.modelpath, 'pretrained_autoencoder_'+self.save_suffix+'.h5')
+        AEmodel_name = os.path.join(self.modelpath, 'pretrained_autoencoder_'+self.save_suffix+'.weights.h5')
         ae_checkpointer = ModelCheckpoint(AEmodel_name, monitor='loss', verbose=0, save_best_only=True, save_weights_only=True)
-        AEmodel.fit_generator(self.auto_encoder_batch_generator_sup(X_train, inlier_indices, self.args.batch_size, self.args.nb_batch, rng),
+        #la méthode fit_generator n'existe plus pour le modèle Keras de type Functional. À partir de TensorFlow 2.1+, fit_generator est dépréciée et a été remplacée par fit
+        AEmodel.fit(self.auto_encoder_batch_generator_sup(X_train, inlier_indices, self.args.batch_size, self.args.nb_batch, rng),
                                          steps_per_epoch=self.args.nb_batch, epochs=100, callbacks=[ae_checkpointer])
 
 
@@ -364,7 +367,8 @@ class FEAWAD():
         self.dev_model_name = os.path.join(self.modelpath, 'devnet_'+self.save_suffix+'.h5')
         checkpointer = ModelCheckpoint(self.dev_model_name, monitor='loss', verbose=0,
                                        save_best_only=True, save_weights_only=True)
-        self.dev_model.fit_generator(self.batch_generator_sup(X_train, outlier_indices, inlier_indices, self.args.batch_size, self.args.nb_batch, rng),
+        #la méthode fit_generator n'existe plus pour le modèle Keras de type Functional. À partir de TensorFlow 2.1+, fit_generator est dépréciée et a été remplacée par fit
+        self.dev_model.fit(self.batch_generator_sup(X_train, outlier_indices, inlier_indices, self.args.batch_size, self.args.nb_batch, rng),
                                       steps_per_epoch=self.args.nb_batch,
                                       epochs=self.args.epochs,
                                       callbacks=[checkpointer])
